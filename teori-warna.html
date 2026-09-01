@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teori Warna Digital: RGB vs CMYK</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons (Lightweight & Professional) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 900: '#1e3a8a' },
+                        rgb: { r: '#ef4444', g: '#22c55e', b: '#3b82f6' },
+                        cmyk: { c: '#06b6d4', m: '#d946ef', y: '#eab308', k: '#1f2937' }
+                    },
+                    boxShadow: { 'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)' }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Base styles & PID Mode Scaling */
+        :root { --scale: 1; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc; 
+            color: #334155; 
+            overflow: hidden;
+            font-size: calc(16px * var(--scale));
+        }
+        body.pid-mode { --scale: 1.25; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Animations */
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .slide-up { animation: slideUp 0.4s ease-out forwards; }
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+
+        /* Custom Range Sliders */
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0;
+        }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 12px; cursor: pointer; border-radius: 6px; border: 1px solid #e2e8f0;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 28px; width: 28px; border-radius: 50%; background: #ffffff;
+            cursor: pointer; -webkit-appearance: none; margin-top: -9px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2); border: 2px solid currentColor;
+        }
+        
+        /* Slider Track Colors */
+        #rgb-r::-webkit-slider-runnable-track { background: linear-gradient(to right, #000, #ff0000); }
+        #rgb-r::-webkit-slider-thumb { color: #ef4444; }
+        #rgb-g::-webkit-slider-runnable-track { background: linear-gradient(to right, #000, #00ff00); }
+        #rgb-g::-webkit-slider-thumb { color: #22c55e; }
+        #rgb-b::-webkit-slider-runnable-track { background: linear-gradient(to right, #000, #0000ff); }
+        #rgb-b::-webkit-slider-thumb { color: #3b82f6; }
+        
+        #cmyk-c::-webkit-slider-runnable-track { background: linear-gradient(to right, #fff, #00ffff); }
+        #cmyk-c::-webkit-slider-thumb { color: #06b6d4; }
+        #cmyk-m::-webkit-slider-runnable-track { background: linear-gradient(to right, #fff, #ff00ff); }
+        #cmyk-m::-webkit-slider-thumb { color: #d946ef; }
+        #cmyk-y::-webkit-slider-runnable-track { background: linear-gradient(to right, #fff, #ffff00); }
+        #cmyk-y::-webkit-slider-thumb { color: #eab308; }
+        #cmyk-k::-webkit-slider-runnable-track { background: linear-gradient(to right, #fff, #000000); }
+        #cmyk-k::-webkit-slider-thumb { color: #1f2937; }
+
+        /* Game Target */
+        .color-target { border: 4px dashed rgba(255,255,255,0.5); }
+    </style>
+</head>
+<body class="text-slate-700 antialiased selection:bg-brand-200">
+
+    <script>
+        // Web Audio API for standalone sound effects (no external files needed)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let isAudioMuted = false;
+
+        function playTone(freq, type, duration, vol=0.1) {
+            if (isAudioMuted || audioCtx.state === 'suspended') return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sfx = {
+            click: () => playTone(600, 'sine', 0.1, 0.05),
+            success: () => { playTone(440, 'sine', 0.1); setTimeout(()=>playTone(554, 'sine', 0.1), 100); setTimeout(()=>playTone(659, 'sine', 0.3), 200); },
+            error: () => { playTone(200, 'sawtooth', 0.2); setTimeout(()=>playTone(150, 'sawtooth', 0.3), 200); },
+            levelUp: () => { playTone(523.25, 'square', 0.1); setTimeout(()=>playTone(659.25, 'square', 0.1), 100); setTimeout(()=>playTone(783.99, 'square', 0.1), 200); setTimeout(()=>playTone(1046.50, 'square', 0.4), 300); }
+        };
+    </script>
+
+    <script>
+        // State Management
+        const STORAGE_KEY = 'dkv_color_app_data';
+        let state = {
+            user: { name: '', class: '', xp: 0, level: 'Color Explorer' },
+            progress: { analyze: false, experiment: false, convert: false, detect: false, quiz: 0 },
+            achievements: []
+        };
+
+        const levels = [
+            { max: 500, name: 'Color Explorer', badge: 'ph-compass' },
+            { max: 1000, name: 'Color Designer', badge: 'ph-palette' },
+            { max: 1500, name: 'Color Specialist', badge: 'ph-medal' },
+            { max: Infinity, name: 'Color Master', badge: 'ph-crown' }
+        ];
+
+        function loadState() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) state = JSON.parse(saved);
+        }
+
+        function saveState() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            updateDashboardUI();
+        }
+
+        function addXP(amount, reason) {
+            state.user.xp += amount;
+            sfx.success();
+            showToast(`+${amount} XP: ${reason}`);
+            
+            // Check Level up
+            let newLevel = levels.find(l => state.user.xp <= l.max).name;
+            if (newLevel !== state.user.level) {
+                state.user.level = newLevel;
+                sfx.levelUp();
+                showAchievement(`Level Up: ${newLevel}!`, `Selamat! Anda telah mencapai level baru.`);
+            }
+            saveState();
+        }
+
+        function unlockAchievement(id, title, desc) {
+            if (!state.achievements.includes(id)) {
+                state.achievements.push(id);
+                addXP(100, `Achievement: ${title}`);
+                showAchievement(`🏆 ${title}`, desc);
+                saveState();
+            }
+        }
+    </script>
+
+    <!-- Onboarding Modal -->
+    <div id="onboarding" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 slide-up text-center">
+            <div class="w-16 h-16 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                <i class="ph-fill ph-palette"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800 mb-2">Laboratorium Warna Digital</h1>
+            <p class="text-slate-500 mb-6">Materi Interaktif: RGB vs CMYK untuk DKV Kelas X</p>
+            
+            <div class="space-y-4 text-left">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Nama Lengkap</label>
+                    <input type="text" id="login-name" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition" placeholder="Masukkan nama...">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Kelas</label>
+                    <input type="text" id="login-class" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition" placeholder="Contoh: X DKV 1">
+                </div>
+                <button onclick="startApp()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md active:scale-95 flex items-center justify-center gap-2">
+                    Mulai Belajar <i class="ph ph-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Achievement Modal -->
+    <div id="achievement-modal" class="fixed inset-0 bg-slate-900/50 z-[60] hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm text-center pop-in border-4 border-yellow-400 relative">
+            <button onclick="document.getElementById('achievement-modal').classList.replace('flex', 'hidden')" class="absolute top-2 right-2 text-slate-400 hover:text-slate-700">
+                <i class="ph ph-x text-2xl"></i>
+            </button>
+            <div class="text-6xl mb-4 animate-bounce">🎉</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2 uppercase tracking-wide" id="achieve-title">Achievement!</h3>
+            <p class="text-slate-600 mb-4" id="achieve-desc">Deskripsi</p>
+            <div class="inline-block bg-yellow-100 text-yellow-800 px-4 py-1 rounded-full font-bold">+100 XP</div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <!-- Main App Container -->
+    <div id="main-app" class="h-screen w-full flex flex-col md:flex-row hidden opacity-0 transition-opacity duration-500">
+        
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="bg-white w-full md:w-72 border-r border-slate-200 flex flex-col flex-shrink-0 transition-transform duration-300 absolute md:relative z-40 h-full -translate-x-full md:translate-x-0">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-brand-50">
+                <div>
+                    <h2 class="font-bold text-brand-900 text-lg flex items-center gap-2">
+                        <i class="ph-fill ph-swatches"></i> ColorLab
+                    </h2>
+                    <p class="text-xs text-brand-600 font-medium mt-1">SMK Kelas X DKV</p>
+                </div>
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-500 text-2xl"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <div class="p-4 bg-slate-50 border-b border-slate-200">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-brand-200 text-brand-700 flex items-center justify-center font-bold text-xl uppercase" id="ui-avatar">S</div>
+                    <div>
+                        <p class="font-bold text-sm text-slate-800 truncate w-40" id="ui-name">Siswa</p>
+                        <p class="text-xs text-slate-500" id="ui-class">Kelas</p>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="flex justify-between text-xs font-bold text-slate-600 mb-1">
+                        <span id="ui-level">Level</span>
+                        <span id="ui-xp">0 XP</span>
+                    </div>
+                    <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div id="ui-progress-bar" class="h-full bg-gradient-to-r from-brand-400 to-brand-600 w-0 transition-all duration-1000"></div>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto p-4 space-y-1" id="nav-menu">
+                <!-- Nav items generated via JS -->
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-full bg-slate-50 relative w-full">
+            
+            <!-- Header -->
+            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleSidebar()" class="md:hidden text-slate-500 text-2xl active:scale-90"><i class="ph ph-list"></i></button>
+                    <h1 class="font-bold text-slate-700 hidden sm:block" id="header-title">Beranda</h1>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="togglePIDMode()" class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition" title="Mode Papan Interaktif (Besar)">
+                        <i class="ph ph-presentation-chart text-xl"></i>
+                    </button>
+                    <button onclick="toggleAudio()" class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition">
+                        <i id="audio-icon" class="ph ph-speaker-high text-xl"></i>
+                    </button>
+                    <button onclick="toggleFullScreen()" class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition">
+                        <i id="fs-icon" class="ph ph-corners-out text-xl"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Scrollable Content Container -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 relative" id="content-area">
+                
+                <section id="sec-home" class="max-w-5xl mx-auto space-y-6 fade-in">
+                    <div class="bg-gradient-to-br from-brand-600 to-brand-800 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
+                        <i class="ph-duotone ph-palette absolute -right-10 -bottom-10 text-9xl text-white/10"></i>
+                        <h2 class="text-3xl md:text-4xl font-bold mb-2">Selamat Datang di Laboratorium Warna</h2>
+                        <p class="text-brand-100 max-w-2xl text-lg">Eksplorasi perbedaan RGB dan CMYK melalui eksperimen, simulasi interaktif, dan studi kasus desain nyata.</p>
+                        <button onclick="navTo('analyze')" class="mt-6 bg-white text-brand-700 font-bold py-3 px-6 rounded-lg hover:bg-brand-50 transition shadow-md inline-flex items-center gap-2">
+                            Mulai Modul 1 <i class="ph ph-arrow-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-xl shadow-soft border border-slate-100 flex items-center gap-4 cursor-pointer hover:-translate-y-1 transition" onclick="navTo('analyze')">
+                            <div class="w-12 h-12 rounded-lg bg-red-100 text-red-600 flex items-center justify-center text-2xl"><i class="ph-fill ph-monitor-play"></i></div>
+                            <div><h3 class="font-bold text-slate-800">Menganalisis</h3><p class="text-xs text-slate-500">Karakteristik RGB & CMYK</p></div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-soft border border-slate-100 flex items-center gap-4 cursor-pointer hover:-translate-y-1 transition" onclick="navTo('experiment')">
+                            <div class="w-12 h-12 rounded-lg bg-green-100 text-green-600 flex items-center justify-center text-2xl"><i class="ph-fill ph-flask"></i></div>
+                            <div><h3 class="font-bold text-slate-800">Eksperimen</h3><p class="text-xs text-slate-500">Pencampuran Warna</p></div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-soft border border-slate-100 flex items-center gap-4 cursor-pointer hover:-translate-y-1 transition" onclick="navTo('convert')">
+                            <div class="w-12 h-12 rounded-lg bg-cyan-100 text-cyan-600 flex items-center justify-center text-2xl"><i class="ph-fill ph-arrows-left-right"></i></div>
+                            <div><h3 class="font-bold text-slate-800">Konversi</h3><p class="text-xs text-slate-500">Layar ke Cetak</p></div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-soft border border-slate-100 flex items-center gap-4 cursor-pointer hover:-translate-y-1 transition" onclick="navTo('quiz')">
+                            <div class="w-12 h-12 rounded-lg bg-yellow-100 text-yellow-600 flex items-center justify-center text-2xl"><i class="ph-fill ph-exam"></i></div>
+                            <div><h3 class="font-bold text-slate-800">Evaluasi</h3><p class="text-xs text-slate-500">Kuis & Analisis</p></div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Class Response Demo -->
+                    <div class="bg-white p-6 rounded-2xl shadow-soft border border-slate-200 text-center">
+                        <span class="inline-block px-3 py-1 bg-brand-100 text-brand-700 text-xs font-bold rounded-full mb-3 uppercase tracking-wider">Aktivitas Kelas / Mode PID</span>
+                        <h3 class="text-xl font-bold mb-6">"Untuk desain brosur yang akan dicetak masal, model warna apa yang disiapkan di aplikasi desain?"</h3>
+                        <div class="flex justify-center gap-4">
+                            <button onclick="handleQuickResponse('RGB')" class="flex-1 max-w-[200px] bg-slate-800 text-white p-6 rounded-xl font-bold text-2xl hover:scale-105 transition shadow-lg border-b-4 border-slate-900 active:border-b-0 active:translate-y-1">RGB</button>
+                            <button onclick="handleQuickResponse('CMYK')" class="flex-1 max-w-[200px] bg-brand-500 text-white p-6 rounded-xl font-bold text-2xl hover:scale-105 transition shadow-lg border-b-4 border-brand-700 active:border-b-0 active:translate-y-1">CMYK</button>
+                        </div>
+                        <div id="quick-response-feedback" class="mt-4 font-bold text-lg hidden p-4 rounded-lg"></div>
+                    </div>
+                </section>
+
+                <section id="sec-analyze" class="max-w-5xl mx-auto space-y-6 hidden">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-12 h-12 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-2xl"><i class="ph-fill ph-monitor-play"></i></div>
+                        <div>
+                            <h2 class="text-2xl font-bold">Menganalisis Model Warna</h2>
+                            <p class="text-slate-500">TP 1: Karakteristik RGB berbasis Cahaya vs CMYK berbasis Tinta</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- RGB Card -->
+                        <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg border border-slate-700 flex flex-col">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-2xl font-bold text-slate-100">RGB</h3>
+                                    <p class="text-slate-400 text-sm">Red, Green, Blue (Additive/Cahaya)</p>
+                                </div>
+                                <i class="ph-fill ph-device-mobile text-4xl text-slate-500"></i>
+                            </div>
+                            
+                            <!-- RGB Preview Block -->
+                            <div id="rgb-preview" class="w-full h-32 rounded-xl bg-black mb-6 shadow-inner transition-colors duration-75 flex items-center justify-center font-mono text-xl font-bold text-white mix-blend-difference border border-slate-600">
+                                RGB(0, 0, 0)
+                            </div>
+                            
+                            <!-- RGB Sliders -->
+                            <div class="space-y-4 flex-1">
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1"><span class="text-red-400">RED</span> <span id="val-r">0</span></div>
+                                    <input type="range" id="rgb-r" min="0" max="255" value="0" oninput="updateRGB()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1"><span class="text-green-400">GREEN</span> <span id="val-g">0</span></div>
+                                    <input type="range" id="rgb-g" min="0" max="255" value="0" oninput="updateRGB()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1"><span class="text-blue-400">BLUE</span> <span id="val-b">0</span></div>
+                                    <input type="range" id="rgb-b" min="0" max="255" value="0" oninput="updateRGB()">
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 bg-slate-900 rounded-lg text-sm text-slate-300">
+                                💡 Menggabungkan ketiganya secara maksimal (255) menghasilkan warna <b>PUTIH</b>. Digunakan untuk monitor/layar.
+                            </div>
+                        </div>
+
+                        <!-- CMYK Card -->
+                        <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 flex flex-col">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-2xl font-bold text-slate-800">CMYK</h3>
+                                    <p class="text-slate-500 text-sm">Cyan, Magenta, Yellow, Key (Subtractive/Tinta)</p>
+                                </div>
+                                <i class="ph-fill ph-printer text-4xl text-slate-300"></i>
+                            </div>
+                            
+                            <!-- CMYK Preview Block -->
+                            <div id="cmyk-preview" class="w-full h-32 rounded-xl bg-white mb-6 shadow-inner border border-slate-300 transition-colors duration-75 flex items-center justify-center font-mono text-xl font-bold text-slate-800 mix-blend-difference">
+                                CMYK(0, 0, 0, 0)
+                            </div>
+                            
+                            <!-- CMYK Sliders -->
+                            <div class="space-y-3 flex-1">
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1"><span class="text-cyan-600">CYAN</span> <span id="val-c">0%</span></div>
+                                    <input type="range" id="cmyk-c" min="0" max="100" value="0" oninput="updateCMYK()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1"><span class="text-fuchsia-500">MAGENTA</span> <span id="val-m">0%</span></div>
+                                    <input type="range" id="cmyk-m" min="0" max="100" value="0" oninput="updateCMYK()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1"><span class="text-yellow-500">YELLOW</span> <span id="val-y">0%</span></div>
+                                    <input type="range" id="cmyk-y" min="0" max="100" value="0" oninput="updateCMYK()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1"><span class="text-slate-800">KEY (BLACK)</span> <span id="val-k">0%</span></div>
+                                    <input type="range" id="cmyk-k" min="0" max="100" value="0" oninput="updateCMYK()">
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm text-slate-600">
+                                💡 Menggabungkan C,M,Y (100%) teoritisnya hitam, tapi prakteknya coklat kotor. Karenanya butuh tinta K (Hitam).
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="markComplete('analyze'); navTo('experiment')" class="w-full mt-4 bg-brand-100 text-brand-700 font-bold py-4 rounded-xl hover:bg-brand-200 transition">Selesai Eksplorasi & Lanjut <i class="ph ph-arrow-right"></i></button>
+                </section>
+
+                <section id="sec-experiment" class="max-w-5xl mx-auto space-y-6 hidden">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-2xl"><i class="ph-fill ph-flask"></i></div>
+                        <div>
+                            <h2 class="text-2xl font-bold">Color Mixing Game</h2>
+                            <p class="text-slate-500">Cocokkan warna target menggunakan slider RGB.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 md:p-8 rounded-2xl shadow-soft border border-slate-200">
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <!-- Visuals -->
+                            <div class="flex-1 flex flex-col items-center gap-4">
+                                <div class="w-full max-w-sm aspect-video rounded-2xl shadow-inner border-4 border-dashed border-slate-300 relative overflow-hidden flex flex-row">
+                                    <div id="game-target" class="flex-1 flex flex-col items-center justify-center font-bold text-white" style="background-color: rgb(255,128,0); text-shadow: 0 1px 3px rgba(0,0,0,0.5);">
+                                        <span>TARGET</span>
+                                        <span id="game-target-code" class="text-xs font-mono font-normal">RGB(255, 128, 0)</span>
+                                    </div>
+                                    <div id="game-current" class="flex-1 flex items-center justify-center font-bold text-white" style="background-color: rgb(128,128,128); text-shadow: 0 1px 3px rgba(0,0,0,0.5);">
+                                        HASIL ANDA
+                                    </div>
+                                </div>
+                                <div class="w-full max-w-sm flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <span class="font-bold text-slate-600">Akurasi:</span>
+                                    <span id="game-accuracy" class="text-3xl font-black text-slate-800">0%</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Controls -->
+                            <div class="flex-1 space-y-6 bg-slate-800 p-6 rounded-2xl text-white">
+                                <p class="text-sm text-slate-300 mb-4">Geser slider untuk menciptakan warna yang sama persis dengan kotak TARGET.</p>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-2"><span class="text-red-400">RED</span></div>
+                                    <input type="range" id="gr-r" min="0" max="255" value="128" oninput="updateGameColor()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-2"><span class="text-green-400">GREEN</span></div>
+                                    <input type="range" id="gr-g" min="0" max="255" value="128" oninput="updateGameColor()">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-2"><span class="text-blue-400">BLUE</span></div>
+                                    <input type="range" id="gr-b" min="0" max="255" value="128" oninput="updateGameColor()">
+                                </div>
+                                <button onclick="checkGameResult()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-lg mt-4 transition shadow-md">
+                                    Cek Akurasi Warna
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-convert" class="max-w-5xl mx-auto space-y-6 hidden">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-12 h-12 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center text-2xl"><i class="ph-fill ph-detective"></i></div>
+                        <div>
+                            <h2 class="text-2xl font-bold">Color Profile Detective & Konversi</h2>
+                            <p class="text-slate-500">TP 2: Mendeteksi kesalahan profil warna pada karya desain cetak.</p>
+                        </div>
+                    </div>
+
+                    <!-- Simulasi Perubahan Warna -->
+                    <div class="bg-white p-6 rounded-2xl shadow-soft border border-slate-200">
+                        <h3 class="font-bold text-lg mb-4 text-slate-800 border-b pb-2">Simulasi Perubahan Gamut (Layar vs Cetak)</h3>
+                        <p class="text-sm text-slate-600 mb-6">Warna-warna terang pada RGB (seperti neon) tidak bisa direproduksi persis oleh tinta CMYK. Tekan tombol konversi untuk melihat simulasi.</p>
+                        
+                        <div class="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
+                            <div class="text-center w-full md:w-1/3">
+                                <div class="w-full aspect-square bg-[#00FF00] rounded-xl shadow-md flex items-center justify-center flex-col text-slate-900 border-4 border-slate-800 mb-2">
+                                    <span class="font-black text-xl">RGB</span>
+                                    <span class="text-xs font-mono">0, 255, 0 (Hijau Terang)</span>
+                                </div>
+                                <p class="text-xs font-bold text-slate-500">Tampilan di Monitor</p>
+                            </div>
+                            
+                            <div class="w-full md:w-auto flex justify-center">
+                                <button onclick="simulateConversion()" class="bg-brand-100 text-brand-700 hover:bg-brand-200 p-4 rounded-full transition shadow-sm active:scale-95">
+                                    <i class="ph-bold ph-arrow-right text-2xl hidden md:block"></i>
+                                    <i class="ph-bold ph-arrow-down text-2xl block md:hidden"></i>
+                                </button>
+                            </div>
+
+                            <div class="text-center w-full md:w-1/3 relative">
+                                <div id="cmyk-sim-box" class="w-full aspect-square bg-slate-200 rounded-xl shadow-md flex items-center justify-center flex-col border border-dashed border-slate-400 mb-2 transition-colors duration-1000 relative overflow-hidden">
+                                    <div id="cmyk-sim-text" class="text-slate-400 font-bold">Klik Konversi</div>
+                                </div>
+                                <p class="text-xs font-bold text-slate-500">Tampilan Hasil Cetak</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Studi Kasus -->
+                    <div class="bg-orange-50 border border-orange-200 p-6 rounded-2xl relative overflow-hidden">
+                        <i class="ph-duotone ph-warning-circle absolute -right-4 -bottom-4 text-8xl text-orange-200/50"></i>
+                        <h3 class="font-bold text-lg text-orange-800 mb-2">Studi Kasus: Poster Bermasalah</h3>
+                        <p class="text-orange-900 text-sm mb-4">Budi mendesain poster kegiatan sekolah. Di monitor komputernya, warna biru poster terlihat sangat cerah dan menyala. Namun setelah dicetak di percetakan, warna birunya berubah menjadi kusam dan lebih gelap.</p>
+                        
+                        <div class="space-y-3 mt-4 relative z-10">
+                            <p class="font-bold text-sm text-orange-800">Sebagai detektif warna, apa penyebab utama masalah Budi?</p>
+                            <button onclick="checkCase(1, false)" class="w-full text-left p-4 bg-white border border-orange-200 rounded-xl hover:bg-orange-100 transition shadow-sm font-medium text-slate-700">A. Monitor Budi terlalu besar sehingga warna terlihat cerah.</button>
+                            <button onclick="checkCase(1, true)" class="w-full text-left p-4 bg-white border border-orange-200 rounded-xl hover:bg-orange-100 transition shadow-sm font-medium text-slate-700 flex justify-between items-center">
+                                <span>B. Budi mencetak file dengan profil RGB tanpa mengonversinya ke CMYK.</span>
+                            </button>
+                            <button onclick="checkCase(1, false)" class="w-full text-left p-4 bg-white border border-orange-200 rounded-xl hover:bg-orange-100 transition shadow-sm font-medium text-slate-700">C. Percetakan kehabisan tinta biru.</button>
+                        </div>
+                        <div id="case-feedback" class="mt-4 p-4 rounded-xl hidden font-bold text-sm"></div>
+                    </div>
+                </section>
+
+                <section id="sec-quiz" class="max-w-4xl mx-auto space-y-6 hidden">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-slate-800">Evaluasi Pemahaman</h2>
+                        <p class="text-slate-500 mt-2">Jawab pertanyaan berikut untuk menguji pengetahuan Anda.</p>
+                    </div>
+                    
+                    <div id="quiz-container" class="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-100 relative overflow-hidden">
+                        <!-- Quiz Content rendered by JS -->
+                        <div id="quiz-content"></div>
+                        <div class="mt-8 flex justify-between items-center">
+                            <div class="text-sm font-bold text-slate-400">Soal <span id="q-curr">1</span> dari <span id="q-tot">5</span></div>
+                            <button id="btn-next-q" onclick="nextQuiz()" class="hidden bg-brand-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-brand-700">Selanjutnya</button>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- Navigation Logic ---
+        const sections = ['home', 'analyze', 'experiment', 'convert', 'quiz'];
+        const navItems = [
+            { id: 'home', icon: 'ph-house', label: 'Beranda' },
+            { id: 'analyze', icon: 'ph-monitor-play', label: 'Menganalisis' },
+            { id: 'experiment', icon: 'ph-flask', label: 'Eksperimen' },
+            { id: 'convert', icon: 'ph-arrows-left-right', label: 'Konversi & Deteksi' },
+            { id: 'quiz', icon: 'ph-exam', label: 'Kuis Evaluasi' }
+        ];
+
+        function initNav() {
+            const menu = document.getElementById('nav-menu');
+            menu.innerHTML = navItems.map(item => `
+                <button onclick="navTo('${item.id}')" id="nav-btn-${item.id}" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors font-medium text-left text-sm md:text-base">
+                    <i class="ph ${item.icon} text-xl"></i> ${item.label}
+                </button>
+            `).join('');
+        }
+
+        function navTo(id) {
+            sections.forEach(s => {
+                document.getElementById(`sec-${s}`).classList.add('hidden');
+                document.getElementById(`nav-btn-${s}`).classList.remove('bg-brand-50', 'text-brand-700', 'font-bold');
+            });
+            document.getElementById(`sec-${id}`).classList.remove('hidden');
+            document.getElementById(`sec-${id}`).classList.add('fade-in');
+            document.getElementById(`nav-btn-${id}`).classList.add('bg-brand-50', 'text-brand-700', 'font-bold');
+            
+            const headerItem = navItems.find(i => i.id === id);
+            document.getElementById('header-title').innerText = headerItem ? headerItem.label : '';
+            
+            if(window.innerWidth < 768) toggleSidebar(false);
+            sfx.click();
+
+            if(id === 'experiment' && targetColor === null) generateNewTarget();
+            if(id === 'quiz' && currentQuizIndex === 0) loadQuiz();
+        }
+
+        function toggleSidebar(force) {
+            const sb = document.getElementById('sidebar');
+            if (force === false) {
+                sb.classList.add('-translate-x-full');
+            } else {
+                sb.classList.toggle('-translate-x-full');
+            }
+        }
+
+        // --- Initialization ---
+        function startApp() {
+            const name = document.getElementById('login-name').value.trim();
+            const cls = document.getElementById('login-class').value.trim();
+            if (!name || !cls) {
+                sfx.error();
+                alert("Harap isi Nama dan Kelas terlebih dahulu.");
+                return;
+            }
+            sfx.click();
+            state.user.name = name;
+            state.user.class = cls;
+            saveState();
+            
+            document.getElementById('onboarding').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            setTimeout(() => document.getElementById('main-app').classList.remove('opacity-0'), 50);
+            
+            updateDashboardUI();
+            navTo('home');
+        }
+
+        function updateDashboardUI() {
+            document.getElementById('ui-name').innerText = state.user.name;
+            document.getElementById('ui-class').innerText = state.user.class;
+            document.getElementById('ui-avatar').innerText = state.user.name.charAt(0).toUpperCase();
+            document.getElementById('ui-xp').innerText = `${state.user.xp} XP`;
+            document.getElementById('ui-level').innerText = state.user.level;
+            
+            // Progress Bar Logic (simple count based on achievements/sections)
+            let progress = (state.user.xp / 1500) * 100; 
+            if(progress > 100) progress = 100;
+            document.getElementById('ui-progress-bar').style.width = `${progress}%`;
+        }
+
+        function markComplete(section) {
+            if (!state.progress[section]) {
+                state.progress[section] = true;
+                addXP(50, `Menyelesaikan Modul: ${section}`);
+                if(section === 'analyze') unlockAchievement('analyze_done', 'RGB Explorer', 'Memahami dasar RGB dan CMYK.');
+            }
+        }
+
+        // --- Simulators Logic ---
+        function updateRGB() {
+            let r = document.getElementById('rgb-r').value;
+            let g = document.getElementById('rgb-g').value;
+            let b = document.getElementById('rgb-b').value;
+            
+            document.getElementById('val-r').innerText = r;
+            document.getElementById('val-g').innerText = g;
+            document.getElementById('val-b').innerText = b;
+            
+            const colorStr = `rgb(${r}, ${g}, ${b})`;
+            const preview = document.getElementById('rgb-preview');
+            preview.style.backgroundColor = colorStr;
+            preview.innerText = `RGB(${r}, ${g}, ${b})`;
+            
+            // Adjust text color for readability based on brightness
+            const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            preview.style.color = luma < 128 ? 'white' : 'black';
+        }
+
+        function updateCMYK() {
+            let c = document.getElementById('cmyk-c').value;
+            let m = document.getElementById('cmyk-m').value;
+            let y = document.getElementById('cmyk-y').value;
+            let k = document.getElementById('cmyk-k').value;
+            
+            document.getElementById('val-c').innerText = c + '%';
+            document.getElementById('val-m').innerText = m + '%';
+            document.getElementById('val-y').innerText = y + '%';
+            document.getElementById('val-k').innerText = k + '%';
+            
+            // Convert CMYK to RGB for screen rendering
+            // Formula: R = 255 * (1-C/100) * (1-K/100)
+            let r = Math.round(255 * (1 - c/100) * (1 - k/100));
+            let g = Math.round(255 * (1 - m/100) * (1 - k/100));
+            let b = Math.round(255 * (1 - y/100) * (1 - k/100));
+            
+            const preview = document.getElementById('cmyk-preview');
+            preview.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+            preview.innerText = `CMYK(${c}%, ${m}%, ${y}%, ${k}%)`;
+            
+            const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            preview.style.color = luma < 128 ? 'white' : 'black';
+        }
+
+        // --- Game Logic ---
+        let targetColor = null;
+        function generateNewTarget() {
+            // Generate distinct readable colors
+            const r = Math.floor(Math.random() * 256);
+            const g = Math.floor(Math.random() * 256);
+            const b = Math.floor(Math.random() * 256);
+            targetColor = {r, g, b};
+            const targetDiv = document.getElementById('game-target');
+            targetDiv.style.backgroundColor = `rgb(${r},${g},${b})`;
+            document.getElementById('game-target-code').innerText = `RGB(${r}, ${g}, ${b})`;
+            
+            // Reset game sliders
+            document.getElementById('gr-r').value = 128;
+            document.getElementById('gr-g').value = 128;
+            document.getElementById('gr-b').value = 128;
+            updateGameColor();
+            document.getElementById('game-accuracy').innerText = '0%';
+        }
+
+        function updateGameColor() {
+            let r = document.getElementById('gr-r').value;
+            let g = document.getElementById('gr-g').value;
+            let b = document.getElementById('gr-b').value;
+            document.getElementById('game-current').style.backgroundColor = `rgb(${r},${g},${b})`;
+        }
+
+        function checkGameResult() {
+            let userR = document.getElementById('gr-r').value;
+            let userG = document.getElementById('gr-g').value;
+            let userB = document.getElementById('gr-b').value;
+            
+            // Euclidean distance
+            let diffR = userR - targetColor.r;
+            let diffG = userG - targetColor.g;
+            let diffB = userB - targetColor.b;
+            let distance = Math.sqrt(diffR*diffR + diffG*diffG + diffB*diffB);
+            
+            // Max distance = sqrt(255^2 * 3) approx 441.67
+            let accuracy = Math.max(0, 100 - (distance / 441.67 * 100)).toFixed(1);
+            
+            const accEl = document.getElementById('game-accuracy');
+            accEl.innerText = `${accuracy}%`;
+            
+            if(accuracy >= 95) {
+                accEl.className = "text-3xl font-black text-green-600";
+                addXP(100, "Akurasi Warna Sempurna!");
+                unlockAchievement('color_mixer', 'Master Pencampur', 'Tepat mencampur warna RGB > 95%.');
+                setTimeout(generateNewTarget, 2000);
+            } else if (accuracy >= 80) {
+                accEl.className = "text-3xl font-black text-brand-600";
+                addXP(50, "Akurasi Warna Baik");
+            } else {
+                accEl.className = "text-3xl font-black text-orange-500";
+                sfx.error();
+            }
+        }
+
+        // --- Conversion Simulation Logic ---
+        function simulateConversion() {
+            sfx.click();
+            const box = document.getElementById('cmyk-sim-box');
+            const text = document.getElementById('cmyk-sim-text');
+            
+            text.innerText = "Mengonversi...";
+            box.classList.add('animate-pulse');
+            
+            setTimeout(() => {
+                box.classList.remove('animate-pulse');
+                box.style.backgroundColor = '#00CC44'; // CMYK green is duller than RGB 0,255,0
+                text.innerHTML = '<span class="text-slate-900 bg-white/80 px-2 py-1 rounded font-black border border-slate-300">CMYK<br><span class="text-xs font-mono font-normal">70%, 0%, 100%, 0%</span><br><span class="text-xs text-red-600 mt-1 block">Warna lebih redup</span></span>';
+                addXP(20, "Mencoba Simulasi Konversi");
+            }, 1000);
+        }
+
+        function checkCase(caseNum, isCorrect) {
+            const fb = document.getElementById('case-feedback');
+            fb.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+            
+            if (isCorrect) {
+                sfx.success();
+                fb.classList.add('bg-green-100', 'text-green-700');
+                fb.innerHTML = '<i class="ph-bold ph-check-circle"></i> TEPAT SEKALI! Monitor menampilkan RGB, sedangkan cetakan menggunakan CMYK. Desainer wajib mengonversi color profile sebelum dicetak.';
+                unlockAchievement('detective', 'Color Detective', 'Berhasil mendiagnosis masalah cetak.');
+                addXP(100, "Menyelesaikan Studi Kasus");
+            } else {
+                sfx.error();
+                fb.classList.add('bg-red-100', 'text-red-700');
+                fb.innerHTML = '<i class="ph-bold ph-x-circle"></i> Kurang tepat. Coba ingat perbedaan bahan dasar yang digunakan layar (cahaya) vs cetakan (tinta).';
+            }
+        }
+
+        // --- PID Mode & Tools ---
+        function togglePIDMode() {
+            sfx.click();
+            document.body.classList.toggle('pid-mode');
+            showToast("Mode Papan Interaktif (PID) diubah.");
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Error: ${err.message}`);
+                });
+                document.getElementById('fs-icon').classList.replace('ph-corners-out', 'ph-corners-in');
+            } else {
+                document.exitFullscreen();
+                document.getElementById('fs-icon').classList.replace('ph-corners-in', 'ph-corners-out');
+            }
+            sfx.click();
+        }
+
+        function toggleAudio() {
+            isAudioMuted = !isAudioMuted;
+            const icon = document.getElementById('audio-icon');
+            if(isAudioMuted) {
+                icon.classList.replace('ph-speaker-high', 'ph-speaker-slash');
+                showToast("Audio Dimatikan");
+            } else {
+                icon.classList.replace('ph-speaker-slash', 'ph-speaker-high');
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                sfx.click();
+                showToast("Audio Dinyalakan");
+            }
+        }
+
+        function handleQuickResponse(answer) {
+            sfx.click();
+            const fb = document.getElementById('quick-response-feedback');
+            fb.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+            
+            if(answer === 'CMYK') {
+                fb.classList.add('bg-green-100', 'text-green-700');
+                fb.innerText = "Benar Kelas! CMYK digunakan untuk keperluan cetak (Tinta).";
+                addXP(50, "Jawaban Kelas Benar");
+            } else {
+                fb.classList.add('bg-red-100', 'text-red-700');
+                fb.innerText = "Perhatikan lagi, cetak masal menggunakan printer/mesin offset yang memakai tinta, bukan layar.";
+            }
+        }
+
+        // --- UI Utilities ---
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'bg-slate-800 text-white px-4 py-2 rounded shadow-lg text-sm font-medium slide-up flex items-center gap-2 border-l-4 border-brand-500';
+            toast.innerHTML = `<i class="ph-fill ph-info"></i> ${msg}`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showAchievement(title, desc) {
+            const modal = document.getElementById('achievement-modal');
+            document.getElementById('achieve-title').innerText = title;
+            document.getElementById('achieve-desc').innerText = desc;
+            modal.classList.replace('hidden', 'flex');
+            setTimeout(() => {
+                modal.classList.replace('flex', 'hidden');
+            }, 5000);
+        }
+
+        // --- Quiz System ---
+        const questions = [
+            { q: "Sebuah desain akan ditampilkan eksklusif di Feed Instagram. Model warna apa yang harus di-setting?", options: ["CMYK", "RGB", "Grayscale", "Pantone"], ans: 1, exp: "Instagram diakses melalui layar smartphone/monitor yang menggunakan basis cahaya (RGB)." },
+            { q: "Karakteristik warna CMYK adalah...", options: ["Additive (berbasis cahaya)", "Menghasilkan warna putih jika dicampur semua", "Subtractive (berbasis tinta/pigmen)", "Memiliki gamut warna lebih luas dari RGB"], ans: 2, exp: "CMYK adalah subtractive; pigmen menyerap cahaya. Campuran ketiganya teoritis menghasilkan warna gelap." },
+            { q: "Apa yang terjadi jika Anda mencetak langsung file RGB (seperti hijau neon) menggunakan printer standar?", options: ["Warna menjadi lebih terang", "Printer akan menolak file", "Warna tercetak lebih kusam/gelap", "Tinta akan cepat habis"], ans: 2, exp: "Warna terang/neon pada layar (RGB) berada di luar gamut CMYK, sehingga printer akan mencetak pendekatan warna terdekat yang biasanya lebih kusam." }
+        ];
+        
+        let currentQuizIndex = 0;
+        let quizScore = 0;
+        let quizAnswered = false;
+
+        function loadQuiz() {
+            if (currentQuizIndex >= questions.length) {
+                showQuizResult();
+                return;
+            }
+            
+            const qData = questions[currentQuizIndex];
+            document.getElementById('q-curr').innerText = currentQuizIndex + 1;
+            document.getElementById('q-tot').innerText = questions.length;
+            
+            let html = `
+                <h3 class="text-xl font-bold text-slate-800 mb-6 leading-relaxed">${qData.q}</h3>
+                <div class="space-y-3">
+            `;
+            
+            qData.options.forEach((opt, idx) => {
+                html += `<button id="opt-${idx}" onclick="answerQuiz(${idx})" class="w-full text-left p-4 rounded-xl border-2 border-slate-200 hover:border-brand-400 hover:bg-brand-50 transition font-medium text-slate-700">${String.fromCharCode(65+idx)}. ${opt}</button>`;
+            });
+            html += `</div><div id="quiz-fb" class="mt-6 p-4 rounded-xl hidden font-bold text-sm"></div>`;
+            
+            document.getElementById('quiz-content').innerHTML = html;
+            document.getElementById('btn-next-q').classList.add('hidden');
+            quizAnswered = false;
+        }
+
+        function answerQuiz(selectedIdx) {
+            if (quizAnswered) return;
+            quizAnswered = true;
+            
+            const qData = questions[currentQuizIndex];
+            const isCorrect = selectedIdx === qData.ans;
+            const fb = document.getElementById('quiz-fb');
+            
+            // Highlight answers
+            document.getElementById(`opt-${selectedIdx}`).classList.add(isCorrect ? 'bg-green-100' : 'bg-red-100', isCorrect ? 'border-green-500' : 'border-red-500');
+            document.getElementById(`opt-${selectedIdx}`).classList.remove('hover:border-brand-400', 'hover:bg-brand-50');
+            
+            if (!isCorrect) {
+                document.getElementById(`opt-${qData.ans}`).classList.add('bg-green-50', 'border-green-500', 'text-green-800');
+                sfx.error();
+                fb.classList.add('bg-red-50', 'text-red-700');
+                fb.innerHTML = `✕ Belum tepat. <br><span class="font-normal text-slate-600 block mt-2">${qData.exp}</span>`;
+            } else {
+                sfx.success();
+                quizScore++;
+                fb.classList.add('bg-green-50', 'text-green-700');
+                fb.innerHTML = `✓ Tepat Sekali! <br><span class="font-normal text-slate-600 block mt-2">${qData.exp}</span>`;
+            }
+            
+            fb.classList.remove('hidden');
+            document.getElementById('btn-next-q').classList.remove('hidden');
+        }
+
+        function nextQuiz() {
+            currentQuizIndex++;
+            loadQuiz();
+        }
+
+        function showQuizResult() {
+            const scorePercentage = Math.round((quizScore / questions.length) * 100);
+            let msg = scorePercentage >= 80 ? "Luar Biasa!" : "Bagus, terus pelajari materinya.";
+            
+            let html = `
+                <div class="text-center py-8">
+                    <i class="ph-duotone ph-trophy text-7xl ${scorePercentage >= 80 ? 'text-yellow-500' : 'text-slate-400'} mb-4"></i>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Kuis Selesai!</h3>
+                    <p class="text-slate-600 mb-6">${msg}</p>
+                    <div class="text-5xl font-black text-brand-600 mb-8">${scorePercentage}%</div>
+                    <button onclick="navTo('home')" class="bg-slate-800 text-white px-8 py-3 rounded-lg font-bold hover:bg-slate-900 transition shadow-lg">Kembali ke Beranda</button>
+                </div>
+            `;
+            document.getElementById('quiz-content').innerHTML = html;
+            document.getElementById('btn-next-q').classList.add('hidden');
+            
+            if(scorePercentage >= 80) unlockAchievement('quiz_master', 'Quiz Master', 'Lulus kuis dengan nilai tinggi.');
+            addXP(scorePercentage * 2, "Penyelesaian Kuis");
+        }
+
+        // --- Run on Load ---
+        window.onload = () => {
+            initNav();
+            loadState();
+            updateRGB();
+            updateCMYK();
+            
+            if (state.user.name !== '') {
+                document.getElementById('onboarding').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden', 'opacity-0');
+                updateDashboardUI();
+                navTo('home');
+            }
+            
+            // Resume Audio Context on first user interaction if suspended
+            document.body.addEventListener('click', () => {
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+            }, {once:true});
+        };
+    </script>
+</body>
+</html>
